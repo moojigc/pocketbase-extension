@@ -1,59 +1,37 @@
-// main.go
 package main
 
 import (
 	"log"
-
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 
+	"github.com/labstack/echo/v5"
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/apis"
+	"github.com/pocketbase/pocketbase/core"
+
+	"pb.chimid.rocks/repos"
 )
-
-type Repo struct {
-	Id          int    `json:"id"`
-	Name        string `json:"name"`
-	Url         string `json:"url"`
-	Homepage    string `json:"homepage"`
-	Description string `json:"description"`
-}
-
-func repos() []uint8 {
-	// repos := []Repo{}
-
-	resp, err := http.Get("https://api.github.com/users/moojigc/starred?sort=updated")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer resp.Body.Close()
-
-	var result []Repo
-
-	if err := json.Unmarshal(body, &result); err != nil {
-		log.Fatal(err)
-	}
-
-	for _, repo := range result {
-		fmt.Println(repo.Name)
-	}
-
-	reformatted, _ := json.Marshal(result)
-
-	return reformatted
-}
 
 func main() {
 	app := pocketbase.New()
+
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		// add new "GET /hello" route to the app router (echo)
+		e.Router.AddRoute(echo.Route{
+			Method: http.MethodGet,
+			Path:   "/api/@chimid/repos",
+			Handler: func(c echo.Context) error {
+				records := repos.LoadOrUpdateRepos(app, 0)
+				return c.JSON(http.StatusOK, map[string]interface{}{
+					"items": records,
+				})
+			},
+			Middlewares: []echo.MiddlewareFunc{apis.ActivityLogger(app)},
+			Name:        "LoadRepos",
+		})
+
+		return nil
+	})
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)

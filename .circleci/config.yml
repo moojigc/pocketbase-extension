@@ -24,6 +24,8 @@ jobs:
             --header 'Content-Type: application/json' \
             --data-raw '{
                 "container": "pocketbase",
+                "image": "pocketbase",
+                "stack": "pocketbase"
             }'
 workflows:
   build:

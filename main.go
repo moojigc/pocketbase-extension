@@ -8,7 +8,8 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
-
+	"github.com/pocketbase/pocketbase/models"
+	"pb.chimid.rocks/ipgeoservice"
 	"pb.chimid.rocks/repos"
 )
 
@@ -28,6 +29,45 @@ func main() {
 			},
 			Middlewares: []echo.MiddlewareFunc{apis.ActivityLogger(app)},
 			Name:        "LoadRepos",
+		})
+
+		return nil
+	})
+
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		e.Router.AddRoute(echo.Route{
+			Method: http.MethodPost,
+			Path:   "/api/@chimid/visit",
+			Handler: func(c echo.Context) error {
+				ipGeo := ipgeoservice.GetIpGeo(c.RealIP())
+
+				collection, err := app.Dao().FindCollectionByNameOrId("visit")
+				if err != nil {
+					return err
+				}
+				record := models.NewRecord(
+					collection,
+				)
+
+				record.Set("ip_address", ipGeo.Ip)
+				record.Set("country", ipGeo.Country)
+				record.Set("city", ipGeo.City)
+				record.Set("region", ipGeo.Region)
+				record.Set("postal_code", ipGeo.PostalCode)
+				record.Set("latitude", ipGeo.Latitude)
+				record.Set("longitude", ipGeo.Longitude)
+				record.Set("user_agent", c.Request().UserAgent())
+				record.Set("referred_by", c.Request().Referer())
+				record.Set("origin", c.Request().Header.Get("Origin"))
+				record.Set("isp", ipGeo.Connection.Isp)
+				record.Set("org", ipGeo.Connection.Org)
+
+				app.Dao().SaveRecord(record)
+
+				return c.JSON(http.StatusOK, ipGeo)
+			},
+			Middlewares: []echo.MiddlewareFunc{apis.ActivityLogger(app)},
+			Name:        "CreateVisit",
 		})
 
 		return nil

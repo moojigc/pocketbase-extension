@@ -62,6 +62,12 @@ func initRepoCollection(app *pocketbase.PocketBase) *models.Collection {
 		DeleteRule: types.Pointer("@request.auth.id != ''"),
 		Schema: schema.NewSchema(
 			&schema.SchemaField{
+				Name:     "github_id",
+				Type:     schema.FieldTypeNumber,
+				Required: true,
+				Unique:   true,
+			},
+			&schema.SchemaField{
 				Name:     "name",
 				Type:     schema.FieldTypeText,
 				Required: true,
@@ -91,25 +97,40 @@ func initRepoCollection(app *pocketbase.PocketBase) *models.Collection {
 	return collection
 }
 
-func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) []*models.Record {
+func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Record, bool) {
 
 	initRepoCollection(app)
 	collection, _ := (*app).Dao().FindCollectionByNameOrId("repositories")
-
-	repos := GetRepos()
+	repos_from_github := GetRepos()
+	changeDetected := false
 
 	var repoRecords []*models.Record
 
-	for _, repo := range *repos {
-		record, err := (*app).Dao().FindFirstRecordByData(collection.Id, "name", repo.Name)
+	for _, repo := range *repos_from_github {
+		record, err := (*app).Dao().FindFirstRecordByData(collection.Id, "github_id", repo.Id)
 		logger.Print(record)
 		logger.Print(err)
 
-		if err != nil || record == nil {
+		if err != nil && record == nil {
+			logger.Print("Creating new record")
 			record = models.NewRecord(collection)
 		}
-		name := repo.Name
-		record.Set("name", name)
+
+		if record.Get("name") != repo.Name {
+			changeDetected = true
+		}
+		if record.Get("url") != repo.Url {
+			changeDetected = true
+		}
+		if record.Get("homepage") != repo.Homepage {
+			changeDetected = true
+		}
+		if record.Get("description") != repo.Description {
+			changeDetected = true
+		}
+
+		record.Set("github_id", repo.Id)
+		record.Set("name", repo.Name)
 		record.Set("url", repo.Url)
 		record.Set("homepage", repo.Homepage)
 		record.Set("description", repo.Description)
@@ -119,5 +140,5 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) []*models.Record
 		repoRecords = append(repoRecords, record)
 	}
 
-	return repoRecords
+	return repoRecords, changeDetected
 }

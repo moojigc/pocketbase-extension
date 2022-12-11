@@ -22,9 +22,10 @@ func main() {
 			Method: http.MethodGet,
 			Path:   "/api/@chimid/repos",
 			Handler: func(c echo.Context) error {
-				records := repos.LoadOrUpdateRepos(app, 0)
+				records, changeDetected := repos.LoadOrUpdateRepos(app, 0)
 				return c.JSON(http.StatusOK, map[string]interface{}{
-					"items": records,
+					"change_detected": changeDetected,
+					"items":           records,
 				})
 			},
 			Middlewares: []echo.MiddlewareFunc{apis.ActivityLogger(app)},

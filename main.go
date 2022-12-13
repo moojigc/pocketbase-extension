@@ -19,7 +19,7 @@ func main() {
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		// add new "GET /hello" route to the app router (echo)
 		e.Router.AddRoute(echo.Route{
-			Method: http.MethodGet,
+			Method: http.MethodPost,
 			Path:   "/api/@chimid/repos",
 			Handler: func(c echo.Context) error {
 				records, changeDetected := repos.LoadOrUpdateRepos(app, 0)

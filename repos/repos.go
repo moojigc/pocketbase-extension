@@ -15,7 +15,7 @@ import (
 type Repo struct {
 	Id          int    `json:"id"`
 	Name        string `json:"name"`
-	Url         string `json:"url"`
+	HtmlUrl     string `json:"html_url"`
 	Homepage    string `json:"homepage"`
 	Description string `json:"description"`
 }
@@ -74,7 +74,7 @@ func initRepoCollection(app *pocketbase.PocketBase) *models.Collection {
 				Unique:   true,
 			},
 			&schema.SchemaField{
-				Name:     "url",
+				Name:     "html_url",
 				Type:     schema.FieldTypeText,
 				Required: true,
 				Unique:   true,
@@ -119,7 +119,7 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 		if record.Get("name") != repo.Name {
 			changeDetected = true
 		}
-		if record.Get("url") != repo.Url {
+		if record.Get("html_url") != repo.HtmlUrl {
 			changeDetected = true
 		}
 		if record.Get("homepage") != repo.Homepage {
@@ -131,7 +131,7 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 
 		record.Set("github_id", repo.Id)
 		record.Set("name", repo.Name)
-		record.Set("url", repo.Url)
+		record.Set("html_url", repo.HtmlUrl)
 		record.Set("homepage", repo.Homepage)
 		record.Set("description", repo.Description)
 		if err := (*app).Dao().SaveRecord(record); err != nil {

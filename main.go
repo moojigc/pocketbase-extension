@@ -69,7 +69,7 @@ func main() {
 
 				app.Dao().SaveRecord(record)
 
-				return c.JSON(http.StatusOK, ipGeo)
+				return c.NoContent(http.StatusCreated)
 			},
 			Middlewares: []echo.MiddlewareFunc{apis.ActivityLogger(app)},
 			Name:        "CreateVisit",

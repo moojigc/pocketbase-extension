@@ -44,12 +44,16 @@ func main() {
 
 				collection, err := app.Dao().FindCollectionByNameOrId("visit")
 				if err != nil {
-					return err
+					log.Println(err)
+					return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+						"message": "Internal Server Error",
+					})
 				}
 				record := models.NewRecord(
 					collection,
 				)
 
+				record.Set("unique_visitor_token", c.Request().Header.Get("X-Visitor-Token"))
 				record.Set("ip_address", ipGeo.Ip)
 				record.Set("country", ipGeo.Country)
 				record.Set("city", ipGeo.City)

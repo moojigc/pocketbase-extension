@@ -5,19 +5,21 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/models"
 	"pb.chimid.rocks/ipgeoservice"
 	"pb.chimid.rocks/repos"
+	"pb.chimid.rocks/visit_public"
 )
 
 func main() {
 	app := pocketbase.New()
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		// add new "GET /hello" route to the app router (echo)
+		// update starred repos with github api
 		e.Router.AddRoute(echo.Route{
 			Method: http.MethodPost,
 			Path:   "/api/@chimid/repos",
@@ -36,6 +38,7 @@ func main() {
 	})
 
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		// custom visit api
 		e.Router.AddRoute(echo.Route{
 			Method: http.MethodPost,
 			Path:   "/api/@chimid/visit",
@@ -75,6 +78,59 @@ func main() {
 			Name:        "CreateVisit",
 		})
 
+		return nil
+	})
+
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		// custom unique visitor api
+		e.Router.AddRoute(echo.Route{
+			Method: http.MethodGet,
+			Path:   "/api/@chimid/visit",
+			Handler: func(c echo.Context) error {
+				request := c.Request()
+
+				// return c.JSON(http.StatusOK, map[string]interface{}{
+				// 	"X-Visitor-Token": request.Header.Get("X-Visitor-Token"),
+				// })
+
+				if request.Header.Get("X-Visitor-Token") == "" {
+					return c.JSON(http.StatusBadRequest, map[string]interface{}{
+						"message": "Missing X-Visitor-Token header",
+					})
+				}
+
+				var total int
+				visitHashExp := dbx.HashExp{"unique_visitor_token": request.Header.Get("X-Visitor-Token")}
+				records := []*visit_public.VisitPublic{}
+
+				if err := app.DB().
+					Select("count(*)").
+					From("visit").
+					AndWhere(visitHashExp).
+					Row(&total); err != nil {
+					panic(err)
+				}
+
+				if err := app.DB().
+					Select("`visit`.*").
+					From("visit").
+					AndWhere(visitHashExp).
+					OrderBy("created DESC").
+					Limit(100).
+					All(&records); err != nil {
+					panic(err)
+				}
+
+				for _, record := range records {
+					record.MatchIp(c.RealIP())
+				}
+
+				return c.JSON(http.StatusOK, map[string]interface{}{
+					"totalItems": total,
+					"items":      records,
+				})
+			},
+		})
 		return nil
 	})
 

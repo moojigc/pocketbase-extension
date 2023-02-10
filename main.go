@@ -111,7 +111,7 @@ func main() {
 				originHeader := request.Header.Get("Origin")
 				referringOrigin := request.Header.Get("X-Referring-Origin")
 
-				if referringOrigin != "" && originHeader != referringOrigin {
+				if referringOrigin != "" {
 					originToSave = referringOrigin
 				} else {
 					originToSave = originHeader

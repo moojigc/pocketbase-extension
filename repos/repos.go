@@ -13,11 +13,34 @@ import (
 )
 
 type Repo struct {
-	Id          int    `json:"id"`
-	Name        string `json:"name"`
-	HtmlUrl     string `json:"html_url"`
-	Homepage    string `json:"homepage"`
-	Description string `json:"description"`
+	Id          int      `json:"id"`
+	Name        string   `json:"name"`
+	HtmlUrl     string   `json:"html_url"`
+	Homepage    string   `json:"homepage"`
+	Description string   `json:"description"`
+	Topics      []string `json:"topics"`
+}
+
+func (r *Repo) TopicsWereUpdated(topics []string) bool {
+	if len(r.Topics) != len(topics) {
+		return true
+	}
+
+	var shorterArr *[]string
+
+	if len(r.Topics) < len(topics) {
+		shorterArr = &r.Topics
+	} else {
+		shorterArr = &topics
+	}
+
+	for index, topic := range *shorterArr {
+		if topic != (*shorterArr)[index] {
+			return true
+		}
+	}
+
+	return false
 }
 
 var logger *log.Logger = log.Default()
@@ -128,16 +151,22 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 		if record.Get("description") != repo.Description {
 			changeDetected = true
 		}
+		if repo.TopicsWereUpdated(record.Get("topics").([]string)) {
+			changeDetected = true
+		}
 
 		record.Set("github_id", repo.Id)
 		record.Set("name", repo.Name)
 		record.Set("html_url", repo.HtmlUrl)
 		record.Set("homepage", repo.Homepage)
 		record.Set("description", repo.Description)
+		record.Set("topics", repo.Topics)
+
 		if err := (*app).Dao().SaveRecord(record); err != nil {
 			logger.Println(err)
 		}
 		repoRecords = append(repoRecords, record)
+
 	}
 
 	return repoRecords, changeDetected

@@ -21,24 +21,20 @@ type Repo struct {
 	Topics      []string `json:"topics"`
 }
 
-func (r *Repo) TopicsWereUpdated(topics []string) bool {
-	if len(r.Topics) != len(topics) {
+func (r *Repo) TopicsWereUpdated(topics *[]string) bool {
+	if len(r.Topics) != len(*topics) {
+		logger.Println("Topics were updated")
 		return true
 	}
 
-	var shorterArr *[]string
-
-	if len(r.Topics) < len(topics) {
-		shorterArr = &r.Topics
-	} else {
-		shorterArr = &topics
-	}
-
-	for index, topic := range *shorterArr {
-		if topic != (*shorterArr)[index] {
+	for index, topic := range r.Topics {
+		if topic != (*topics)[index] {
+			logger.Printf("Topic %s was updated to %s\n", (*topics)[index], topic)
 			return true
 		}
 	}
+
+	logger.Println("Topics were not updated")
 
 	return false
 }
@@ -66,7 +62,8 @@ func GetRepos() *[]Repo {
 	var repos []Repo
 
 	if err := json.Unmarshal(body, &repos); err != nil {
-		log.Fatal(err)
+		logger.Println("[ERROR] Error unmarshalling repos: ")
+		logger.Println(err)
 	}
 
 	logger.Printf("Got %d repos", len(repos))
@@ -139,6 +136,8 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 			record = models.NewRecord(collection)
 		}
 
+		// if record.Get("topics")
+
 		if record.Get("name") != repo.Name {
 			changeDetected = true
 		}
@@ -151,7 +150,14 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 		if record.Get("description") != repo.Description {
 			changeDetected = true
 		}
-		if repo.TopicsWereUpdated(record.Get("topics").([]string)) {
+
+		recordTopicsJson := record.Get("topics").(types.JsonRaw)
+		var recordTopics []string
+		json.Unmarshal(recordTopicsJson, &recordTopics)
+		logger.Println("Record topics: ")
+		logger.Println(recordTopics)
+
+		if repo.TopicsWereUpdated(&recordTopics) {
 			changeDetected = true
 		}
 
@@ -168,6 +174,8 @@ func LoadOrUpdateRepos(app *pocketbase.PocketBase, retries int) ([]*models.Recor
 		repoRecords = append(repoRecords, record)
 
 	}
+
+	logger.Println("[INFO] Change detected: ", changeDetected)
 
 	return repoRecords, changeDetected
 }

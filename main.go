@@ -15,6 +15,8 @@ import (
 	"pb.chimid.rocks/ipgeoservice"
 	"pb.chimid.rocks/repos"
 	"pb.chimid.rocks/visit_public"
+
+	"github.com/google/uuid"
 )
 
 func getVisitSelectQuery(query url.Values, app *pocketbase.PocketBase) *dbx.SelectQuery {
@@ -117,7 +119,12 @@ func main() {
 					originToSave = originHeader
 				}
 
-				record.Set("unique_visitor_token", c.Request().Header.Get("X-Visitor-Token"))
+				uniqueVisitorToken := request.Header.Get("X-Visitor-Token")
+				if uniqueVisitorToken == "" {
+					uniqueVisitorToken = uuid.New().String()
+				}
+
+				record.Set("unique_visitor_token", uniqueVisitorToken)
 				record.Set("ip_address", ipGeo.Ip)
 				record.Set("country", ipGeo.Country)
 				record.Set("city", ipGeo.City)
@@ -175,6 +182,20 @@ func main() {
 				return c.JSON(http.StatusOK, map[string]interface{}{
 					"totalItems": total,
 					"items":      records,
+				})
+			},
+		})
+		return nil
+	})
+
+	// return a random UUID
+	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
+		e.Router.AddRoute(echo.Route{
+			Method: http.MethodGet,
+			Path:   "/api/@chimid/uuid",
+			Handler: func(c echo.Context) error {
+				return c.JSON(http.StatusOK, map[string]interface{}{
+					"uuid": uuid.New().String(),
 				})
 			},
 		})
